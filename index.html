@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Dashboard Institucional | SARESP e PROVÃO PAULISTA 2026</title>
+<link rel="stylesheet" href="./styles.css?v=20261110x">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+<script src="./config.js"></script>
+</head>
+<body>
+
+<!-- Identidade institucional e estado da conexão. -->
+
+<header><div class="head"><div class="brand"><img class="seal" src="./assets/ure-itapevi-logo.png" alt="Logotipo da Unidade Regional de Ensino de Itapevi"><div><div class="eyebrow">Unidade Regional de Ensino de Itapevi</div><h1>Dashboard Institucional de Aplicação</h1><div class="subtitle">SARESP/PROVÃO PAULISTA · 2026 </div></div></div><div class="headstatus"><strong id="status">Desconectado</strong><span id="stamp">Fonte: planilha Google publicada</span></div></div></header>
+<main>
+    
+<!-- Sincronização, notificações e filtros aplicados aos resultados. -->
+
+<div class="bar"><div class="actions"><button class="btn" id="login">🔄 Sincronizar planilha Google</button><button class="btn alt" id="refresh" disabled>↻ Atualizar agora</button><button class="btn alt" id="logout" hidden>Desconectar painel</button><button class="btn alt" id="downloadPdf" type="button">Baixar PDF</button></div><div class="info" id="sourceInfo">Base: dados agregados da planilha Google</div></div>
+<div class="notice" id="notice"><b>Sincronização automática:</b> dados agregados por unidade escolar, série e dia são carregados da planilha Google publicada.</div>
+<div class="print-summary" id="printSummary"></div>
+<div class="filters">
+    
+<div class="filter"><label for="grade">Ano / Série</label><select id="grade"><option value="">Todas</option></select></div>
+<div class="filter"><label for="school">Unidade Escolar</label><select id="school"><option value="">Carregando unidades...</option></select><div class="filter-hint" id="schoolHint">As unidades serão carregadas da planilha.</div></div>
+<!-- <div class="filter"><label for="turma">Turma</label><select id="turma"><option value="">Todas</option></select></div>-->
+<div class="filter"><label for="day">Dia de aplicação</label><select id="day"><option value="">Todos</option></select></div>
+<div class="filter"><label for="type">Visualização</label><select id="type"><option value="ESCOLA">Por escola</option><option value="TURMA">Por turma</option></select></div>
+</div>
+
+<!-- Indicadores principais conforme os filtros selecionados. -->
+
+<div class="kpis">
+<div class="kpi"><div class="label">Alunos previstos finais</div><div class="value" id="planned">—</div><div class="hint">Total conforme filtros</div></div>
+<div class="kpi"><div class="label">Alunos presentes</div><div class="value" id="present">—</div><div class="hint">Registros de presença</div></div>
+<div class="kpi"><div class="label">Participação</div><div class="value" id="rate">—</div><div class="hint">Presentes ÷ previstos finais</div></div></div>
+<!-- Gráficos de participação e distribuição de presença. -->
+<div class="grid"><section class="panel"><h2>Participação por ano / série</h2><div class="sub" id="gradeChartHint">Média da participação por dia de aplicação para cada ano/série</div><div class="chart"><canvas id="gradeChart"></canvas></div></section><section class="panel"><h2>Presentes e ausentes</h2><div class="sub" id="attendanceChartHint">Selecione um dia de aplicação para visualizar presentes e ausentes</div><div class="chart"><canvas id="attendanceChart"></canvas></div></section></div>
+
+<!-- Detalhamento tabular e legendas dos indicadores. -->
+
+<section class="panel tablepanel"><div class="tablehead"><div><h2>Detalhamento da aplicação</h2><div class="sub" id="count">Aguardando sincronização</div></div><div class="table-actions"><input id="search" placeholder="Buscar escola, série ou turma..."></div></div><div class="tablewrap" id="table"><div class="empty">Carregando dados agregados por unidade escolar...</div></div><div class="table-download"><button class="btn alt" id="downloadSheet" type="button" disabled>Baixar planilha (.CSV)</button></div><div class="table-legends"><div class="traffic-legend" aria-label="Legenda do farol de participação"><span><i class="participation-light participation-light-high"></i>Participação alta: ≥ 80%</span><span><i class="participation-light participation-light-low"></i>Baixa: &lt; 80%</span></div><div class="traffic-legend" aria-label="Legenda do farol de ausência"><span><i class="absence-light absence-light-low"></i>Ausência baixa: &lt; 1%</span><span><i class="absence-light absence-light-medium"></i>Intermediária: ≥ 1% e ≤ 20%</span><span><i class="absence-light absence-light-high"></i>Ausência alta: &gt; 20%</span></div></div></section>
+<div class="foot">Painel institucional de apoio à gestão · URE Itapevi · Fonte: dados agregados da planilha Google</div></main>
+<script src="./app.js?v=20261110k" defer></script></body></html>

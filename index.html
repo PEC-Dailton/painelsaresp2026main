@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Dashboard Institucional | SARESP e PROVÃO PAULISTA 2026</title>
-<link rel="stylesheet" href="./styles.css?v=20261110x">
+<link rel="stylesheet" href="./styles.css?v=20261115f">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
 <script src="./config.js"></script>
 </head>
@@ -21,11 +21,11 @@
 <div class="print-summary" id="printSummary"></div>
 <div class="filters">
     
-<div class="filter"><label for="grade">Ano / Série</label><select id="grade"><option value="">Todas</option></select></div>
-<div class="filter"><label for="school">Unidade Escolar</label><select id="school"><option value="">Carregando unidades...</option></select><div class="filter-hint" id="schoolHint">As unidades serão carregadas da planilha.</div></div>
+<div class="filter"><span class="filter-label" id="gradeLabel">Ano / Série</span><details class="multi-select" aria-labelledby="gradeLabel gradeSummary"><summary id="gradeSummary">Todas</summary><div class="multi-select-options" id="gradeOptions"></div></details></div>
+<div class="filter"><span class="filter-label" id="schoolLabel">Unidade Escolar</span><details class="multi-select" aria-labelledby="schoolLabel schoolSummary"><summary id="schoolSummary">Todas as unidades</summary><div class="multi-select-options" id="schoolOptions"></div></details><div class="filter-hint" id="schoolHint">As unidades serão carregadas da planilha.</div></div>
 <!-- <div class="filter"><label for="turma">Turma</label><select id="turma"><option value="">Todas</option></select></div>-->
-<div class="filter"><label for="day">Dia de aplicação</label><select id="day"><option value="">Todos</option></select></div>
-<div class="filter"><label for="type">Visualização</label><select id="type"><option value="ESCOLA">Por escola</option><option value="TURMA">Por turma</option></select></div>
+<div class="filter"><span class="filter-label" id="dayLabel">Dia de aplicação</span><details class="multi-select" aria-labelledby="dayLabel daySummary"><summary id="daySummary">Todos</summary><div class="multi-select-options" id="dayOptions"></div></details></div>
+<div class="filter"><span class="filter-label" id="viewLabel">Visualização</span><details class="multi-select" aria-labelledby="viewLabel viewSummary"><summary id="viewSummary">Por escola</summary><div class="multi-select-options"><label class="multi-option"><input type="checkbox" name="view" value="ESCOLA" checked><span>Por escola</span></label><label class="multi-option"><input type="checkbox" name="view" value="TURMA"><span>Por turma</span></label></div></details></div>
 </div>
 
 <!-- Indicadores principais conforme os filtros selecionados. -->
@@ -41,4 +41,5 @@
 
 <section class="panel tablepanel"><div class="tablehead"><div><h2>Detalhamento da aplicação</h2><div class="sub" id="count">Aguardando sincronização</div></div><div class="table-actions"><input id="search" placeholder="Buscar escola, série ou turma..."></div></div><div class="tablewrap" id="table"><div class="empty">Carregando dados agregados por unidade escolar...</div></div><div class="table-download"><button class="btn alt" id="downloadSheet" type="button" disabled>Baixar planilha (.CSV)</button></div><div class="table-legends"><div class="traffic-legend" aria-label="Legenda do farol de participação"><span><i class="participation-light participation-light-high"></i>Participação alta: ≥ 80%</span><span><i class="participation-light participation-light-low"></i>Baixa: &lt; 80%</span></div><div class="traffic-legend" aria-label="Legenda do farol de ausência"><span><i class="absence-light absence-light-low"></i>Ausência baixa: &lt; 1%</span><span><i class="absence-light absence-light-medium"></i>Intermediária: ≥ 1% e ≤ 20%</span><span><i class="absence-light absence-light-high"></i>Ausência alta: &gt; 20%</span></div></div></section>
 <div class="foot">Painel institucional de apoio à gestão · URE Itapevi · Fonte: dados agregados da planilha Google</div></main>
-<script src="./app.js?v=20261110k" defer></script></body></html>
+<script src="./app.js?v=20261115e" defer></script></body></html>
+

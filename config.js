@@ -22,3 +22,4 @@ window.PAINEL_SHEET_CSV_URLS = [
   { url: sheetCsvBaseUrl + '456843553', grade: '2ª Itinerário', view: 'TURMA' },
   { url: sheetCsvBaseUrl + '1976129642', grade: '3ª Itinerário', view: 'TURMA' }
 ];
+

@@ -4,6 +4,9 @@ let data = [];
 let availableSchools = [];
 let availableGrades = [];
 let availableDates = [];
+const selectedGrades = new Set();
+const selectedDays = new Set();
+const selectedSchools = new Set();
 let tableRows = [];
 let gradeChart = null;
 let attendanceChart = null;
@@ -95,10 +98,13 @@ function gradeDisplayLabel(value) {
 }
 
 function gradeMatchesFilter(rowGrade, selectedGrade) {
-  if (!selectedGrade) return true;
-  return rowGrade === selectedGrade ||
-    (itinerarioSourceGrades[selectedGrade] &&
-      rowGrade === itinerarioSourceGrades[selectedGrade]);
+  const grades = Array.isArray(selectedGrade)
+    ? selectedGrade
+    : selectedGrade ? [selectedGrade] : [];
+  return !grades.length || grades.some(grade =>
+    rowGrade === grade ||
+    (itinerarioSourceGrades[grade] && rowGrade === itinerarioSourceGrades[grade])
+  );
 }
 
 function scheduledDatesForGrade(grade) {
@@ -125,58 +131,68 @@ function fill(id, values, firstLabel) {
   if (values.includes(previous)) element.value = previous;
 }
 
-function datesForGrade(grade) {
-  if (!grade) return availableDates;
-  const scheduledDates = scheduledDatesForGrade(grade);
-  if (scheduledDates.length) return scheduledDates;
-  const synchronizedDates = new Set(data
-    .filter(row =>
-      gradeMatchesFilter(row.grade, grade) &&
+function multiFilterState(id) {
+  const states = {
+    grade: { selected: selectedGrades, label: $('gradeSummary'), options: $('gradeOptions'), emptyLabel: 'Todas' },
+    school: { selected: selectedSchools, label: $('schoolSummary'), options: $('schoolOptions'), emptyLabel: 'Todas as unidades' },
+    day: { selected: selectedDays, label: $('daySummary'), options: $('dayOptions'), emptyLabel: 'Todos' }
+  };
+  return states[id];
+}
+
+function updateMultiFilterLabel(id) {
+  const state = multiFilterState(id);
+  const values = [...state.selected];
+  state.label.textContent = values.length === 0
+    ? state.emptyLabel
+    : values.length === 1
+      ? (id === 'grade' ? gradeDisplayLabel(values[0]) : values[0])
+      : `${values.length} selecionados`;
+}
+
+function fillMultiFilter(id, values) {
+  const state = multiFilterState(id);
+  const available = new Set(values);
+  for (const value of state.selected) {
+    if (!available.has(value)) state.selected.delete(value);
+  }
+  state.options.innerHTML = values.map(value => {
+    const label = id === 'grade' ? gradeDisplayLabel(value) : value;
+    return `<label class="multi-option"><input type="checkbox" value="${esc(value)}" ` +
+      `${state.selected.has(value) ? 'checked' : ''}><span>${esc(label)}</span></label>`;
+  }).join('');
+  updateMultiFilterLabel(id);
+}
+
+function datesForGrades(grades) {
+  if (!grades.length) return availableDates;
+  const dates = new Set();
+  for (const grade of grades) {
+    const scheduledDates = scheduledDatesForGrade(grade);
+    if (scheduledDates.length) {
+      scheduledDates.forEach(day => dates.add(day));
+      continue;
+    }
+    data.filter(row =>
+      gradeMatchesFilter(row.grade, [grade]) &&
       ['initial', 'transfers', 'evaded', 'planned', 'present', 'absent']
         .some(metric => Number(row[metric]) > 0)
-    )
-    .map(row => row.day));
-  return availableDates.filter(day => synchronizedDates.has(day));
+    ).forEach(row => dates.add(row.day));
+  }
+  return availableDates.filter(day => dates.has(day));
 }
 
 function fillAvailableDays() {
-  const dates = datesForGrade($('grade').value);
-  const selectedDay = $('day').value;
-  fill('day', dates, 'Todos');
-  if (selectedDay && !dates.includes(selectedDay)) $('day').value = '';
+  fillMultiFilter('day', datesForGrades([...selectedGrades]));
 }
 
 function fillTurmas() {
-  const school = $('school').value;
-  const grade = $('grade').value;
   const available = data.filter(row =>
     row.type === 'TURMA' &&
-    (!school || row.school === school) &&
-    (!grade || row.grade === grade)
+    (!selectedSchools.size || selectedSchools.has(row.school)) &&
+    gradeMatchesFilter(row.grade, [...selectedGrades])
   );
   fill('turma', uniq(available.map(row => row.turma)), 'Todas');
-}
-
-function syncItinerarioFilter(source) {
-  const grade = $('grade').value;
-  const day = $('day').value;
-  const itineraryDates = scheduledDatesForGrade(grade);
-  if (source === 'grade' && normalizedGradeIsItinerary(grade) &&
-      itineraryDates.length && datesForGrade(grade).includes(itineraryDates[0])) {
-    $('day').value = itineraryDates[0];
-  } else if (source === 'day') {
-    const scheduledGrade = Object.keys(applicationSchedule)
-      .find(candidate => normalizedGradeIsItinerary(candidate) &&
-        scheduledDatesForGrade(candidate).includes(day));
-    if (scheduledGrade && availableGrades.includes(scheduledGrade) &&
-        datesForGrade(scheduledGrade).includes(day)) {
-      $('grade').value = scheduledGrade;
-    }
-  }
-}
-
-function normalizedGradeIsItinerary(grade) {
-  return String(grade || '').toLocaleLowerCase('pt-BR').includes('itinerário');
 }
 
 // Avisos de sincronização, qualidade e disponibilidade dos dados.
@@ -195,10 +211,11 @@ function missingApiError() {
 function showQualityNotice(quality, result) {
   const messages = [];
   const filters = currentFilters();
-  if (!result.rows.length && filters.school && filters.grade && filters.day) {
+  if (!result.rows.length && filters.school.length && filters.grade.length && filters.day.length) {
     messages.push(
-      `Não há dados preenchidos na planilha para ${filters.grade} na unidade ` +
-      `${filters.school} em ${filters.day}. Verifique a aba do itinerário na planilha Google.`
+      `Não há dados preenchidos na planilha para ${filters.grade.map(gradeDisplayLabel).join(', ')} ` +
+      `na(s) unidade(s) ${filters.school.join(', ')} em ${filters.day.join(', ')}. ` +
+      'Verifique a aba do itinerário na planilha Google.'
     );
   }
   if (quality.negativeAbsences) {
@@ -218,7 +235,7 @@ function showQualityNotice(quality, result) {
       messages.join(' '),
       Boolean(quality.negativeAbsences || quality.presentOverPlanned)
     );
-  } else if (sheetCsvUrl && $('school').value && isRegionalCsvData()) {
+  } else if (sheetCsvUrl && selectedSchools.size && isRegionalCsvData()) {
     showNotice(
       'Unidade selecionada para visualização. A fonte atual contém somente totais regionais; ' +
       'os indicadores exibidos não são específicos desta escola.'
@@ -542,14 +559,14 @@ function aggregatePublishedData(rows, view, filters) {
   const regionalOnly = rows.length > 0 && rows.every(row => row.school === 'Total regional');
   const viewRows = regionalOnly ? rows : rows.filter(row => row.type === view);
   const selectedRows = viewRows.filter(row => {
-    if (filters.school && !regionalOnly && row.school !== filters.school) return false;
+    if (filters.school.length && !regionalOnly && !filters.school.includes(row.school)) return false;
     if (!gradeMatchesFilter(row.grade, filters.grade)) return false;
-    if (filters.day && row.day !== filters.day) return false;
+    if (filters.day.length && !filters.day.includes(row.day)) return false;
     const searchable = [row.school, row.grade, row.period, row.day].join(' ').toLocaleLowerCase('pt-BR');
     return !search || searchable.includes(search);
   });
   const chartRows = viewRows.filter(row =>
-    (!filters.school || regionalOnly || row.school === filters.school) &&
+    (!filters.school.length || regionalOnly || filters.school.includes(row.school)) &&
     (!search || [row.school, row.grade, row.period, row.day].join(' ').toLocaleLowerCase('pt-BR').includes(search))
   );
   const metrics = ['initial', 'transfers', 'evaded', 'planned', 'present', 'absent'];
@@ -564,7 +581,7 @@ function aggregatePublishedData(rows, view, filters) {
       group = {
         type: view,
         school: row.school,
-        grade: row.grade || (filters.grade || 'Todas as séries'),
+        grade: row.grade || (filters.grade.join(', ') || 'Todas as séries'),
         turma: row.turma || '',
         period: row.period || '',
         day: row.day,
@@ -581,7 +598,7 @@ function aggregatePublishedData(rows, view, filters) {
     Date.UTC(...left.day.split('/').reverse().map(Number)) -
       Date.UTC(...right.day.split('/').reverse().map(Number))
   );
-  const totals = filters.day && resultRows.length
+  const totals = filters.day.length && resultRows.length
     ? Object.fromEntries(metrics.map(metric => [
       metric,
       resultRows.reduce((total, row) => total + row[metric], 0)
@@ -635,11 +652,11 @@ function aggregatePublishedData(rows, view, filters) {
 
 function currentFilters() {
   return {
-    view: $('type').value,
-    school: $('school').value,
-    grade: $('grade').value,
+    view: document.querySelector('input[name="view"]:checked')?.value || 'ESCOLA',
+    school: [...selectedSchools],
+    grade: [...selectedGrades],
     turma: $('turma')?.value || '',
-    day: $('day').value,
+    day: [...selectedDays],
     search: $('search').value
   };
 }
@@ -649,10 +666,10 @@ function updatePrintSummary() {
   const filters = currentFilters();
   const labels = [
     ['Visão', filters.view === 'TURMA' ? 'Por turma' : 'Por escola'],
-    ['Escola', filters.school],
-    ['Ano/Série', filters.grade],
+    ['Escola', filters.school.join(', ')],
+    ['Ano/Série', filters.grade.map(gradeDisplayLabel).join(', ')],
     ['Turma', filters.turma],
-    ['Data', filters.day],
+    ['Data', filters.day.join(', ')],
     ['Busca', filters.search]
   ].filter(([, value]) => value);
 
@@ -661,7 +678,7 @@ function updatePrintSummary() {
 }
 
 function setMetrics(result) {
-  const daySelected = Boolean($('day').value);
+  const daySelected = selectedDays.size > 0;
   const totals = result.totals;
   $('planned').textContent = daySelected && totals ? fmt(totals.planned) : '—';
   $('present').textContent = daySelected && totals ? fmt(totals.present) : '—';
@@ -681,10 +698,10 @@ function setMetrics(result) {
 
 function renderCharts(result) {
   const grades = result.gradeStats.filter(item => isGradeLabel(item.grade));
-  const daySelected = Boolean($('day').value);
+  const daySelected = selectedDays.size > 0;
   $('gradeChartHint').textContent = 'Média da participação por dia de aplicação para cada ano/série';
   $('attendanceChartHint').textContent = daySelected
-    ? 'Distribuição dos registros filtrados na data selecionada'
+    ? `Distribuição dos registros filtrados ${selectedDays.size > 1 ? 'nas datas' : 'na data'} selecionada${selectedDays.size > 1 ? 's' : ''}`
     : 'Selecione um dia de aplicação para visualizar presentes e ausentes';
   const labels = grades.map(item => gradeDisplayLabel(item.grade));
   const participation = grades.map(item =>
@@ -766,7 +783,7 @@ function renderTable(rows) {
   }
 
   if (sheetCsvUrl) {
-    const turmaView = $('type').value === 'TURMA' && !isRegionalCsvData();
+    const turmaView = currentFilters().view === 'TURMA' && !isRegionalCsvData();
     const schoolHeading = isRegionalCsvData() ? 'Abrangência' : 'Unidade Escolar';
     $('table').innerHTML = `<table><thead><tr>
       <th class="school-column">${schoolHeading}</th><th>Ano/Série</th>${turmaView ? '<th>Turma</th>' : ''}<th>Período</th><th>Dia de aplicação</th>
@@ -818,7 +835,7 @@ function downloadFilteredRows() {
 
   const regionalData = sheetCsvUrl && isRegionalCsvData();
   const schoolHeading = regionalData ? 'Abrangência' : 'Unidade Escolar';
-  const turmaView = sheetCsvUrl && $('type').value === 'TURMA' && !regionalData;
+  const turmaView = sheetCsvUrl && currentFilters().view === 'TURMA' && !regionalData;
   const headers = sheetCsvUrl
     ? [
       schoolHeading, 'Ano/Série', ...(turmaView ? ['Turma'] : []), 'Período',
@@ -906,10 +923,18 @@ function participationIndicator(row) {
 async function render() {
   const requestId = ++dashboardRequest;
   updatePrintSummary();
-  const query = new URLSearchParams(currentFilters());
+  const filters = currentFilters();
+  const query = new URLSearchParams();
+  for (const [key, value] of Object.entries(filters)) {
+    if (Array.isArray(value)) {
+      value.forEach(item => query.append(key, item));
+    } else {
+      query.append(key, value);
+    }
+  }
   try {
     const result = sheetCsvUrl
-      ? aggregatePublishedData(data, $('type').value, currentFilters())
+      ? aggregatePublishedData(data, filters.view, filters)
       : await requestJson('/api/dashboard?' + query.toString());
     if (requestId !== dashboardRequest) return;
     setMetrics(result);
@@ -939,13 +964,10 @@ function applyData(result) {
     ...data.map(row => row.grade)
   ].filter(isGradeLabel));
   isConnected = true;
-  fill('grade', availableGrades, 'Todas');
+  fillMultiFilter('grade', availableGrades);
   const regionalOnly = isRegionalCsvData();
-  fill(
-    'school',
-    regionalOnly ? [] : availableSchools,
-    regionalOnly ? 'Dados regionais (sem unidade)' : 'Todas as unidades'
-  );
+  fillMultiFilter('school', regionalOnly ? [] : availableSchools);
+  if (regionalOnly) $('schoolSummary').textContent = 'Dados regionais (sem unidade)';
   $('schoolHint').textContent = regionalOnly
     ? 'A fonte atual contém totais regionais; selecione uma fonte com dados por unidade para filtrar escolas.'
     : 'Filtre os indicadores pelos dados da unidade selecionada.';
@@ -996,7 +1018,7 @@ async function check() {
     $('login').textContent = '🔄 Sincronizar planilha Google';
     $('login').hidden = false;
     $('logout').hidden = true;
-    document.querySelector('label[for="school"]').textContent = 'Unidade Escolar';
+    $('schoolLabel').textContent = 'Unidade Escolar';
     await loadData();
     return;
   }
@@ -1049,9 +1071,12 @@ async function disconnect() {
     availableGrades = [];
     availableDates = [];
     isConnected = false;
-    fill('grade', [], 'Todas');
-    fill('school', [], 'Todas');
-    fill('day', [], 'Todos');
+    selectedGrades.clear();
+    selectedDays.clear();
+    selectedSchools.clear();
+    fillMultiFilter('grade', []);
+    fillMultiFilter('school', []);
+    fillMultiFilter('day', []);
     fill('turma', [], 'Todas');
     renderTable([]);
     setMetrics({ totals: null });
@@ -1075,20 +1100,69 @@ async function disconnect() {
 $('login').onclick = startLogin;
 $('refresh').onclick = loadData;
 $('logout').onclick = disconnect;
-['grade', 'school', 'day', 'turma', 'type'].forEach(id => {
+['turma'].forEach(id => {
   const element = $(id);
   if (!element) return;
   element.addEventListener('change', () => {
+    render();
+  });
+});
+
+const viewOptions = [...document.querySelectorAll('input[name="view"]')];
+function setView(value) {
+  const selectedView = viewOptions.find(option => option.value === value) || viewOptions[0];
+  viewOptions.forEach(option => {
+    option.checked = option === selectedView;
+  });
+  $('viewSummary').textContent = selectedView.value === 'TURMA' ? 'Por turma' : 'Por escola';
+  render();
+}
+
+viewOptions.forEach(option => {
+  option.addEventListener('change', () => {
+    if (!option.checked) {
+      setView(viewOptions.find(item => item.checked)?.value || 'ESCOLA');
+      return;
+    }
+    setView(option.value);
+  });
+});
+const viewDetails = $('viewSummary').closest('.multi-select');
+viewDetails.addEventListener('toggle', () => {
+  viewDetails.closest('.filter').classList.toggle('is-open', viewDetails.open);
+});
+
+['grade', 'school', 'day'].forEach(id => {
+  const state = multiFilterState(id);
+  const details = state.options.closest('.multi-select');
+  state.options.addEventListener('change', event => {
+    if (event.target.type !== 'checkbox') return;
+    state.selected.clear();
+    state.options.querySelectorAll('input:checked').forEach(input => state.selected.add(input.value));
+    updateMultiFilterLabel(id);
     if (id === 'grade') {
       fillAvailableDays();
-      syncItinerarioFilter(id);
+      fillTurmas();
     }
-    if (id === 'day') {
-      syncItinerarioFilter(id);
-      fillAvailableDays();
-    }
-    if (id === 'grade' || id === 'school') fillTurmas();
+    if (id === 'school') fillTurmas();
     render();
+  });
+  details.addEventListener('toggle', () => {
+    details.closest('.filter').classList.toggle('is-open', details.open);
+  });
+});
+
+document.addEventListener('click', event => {
+  document.querySelectorAll('.multi-select[open]').forEach(details => {
+    if (!details.contains(event.target)) details.open = false;
+  });
+});
+
+document.addEventListener('keydown', event => {
+  if (event.key !== 'Escape') return;
+  document.querySelectorAll('.multi-select[open]').forEach(details => {
+    details.open = false;
+    details.querySelector('summary').focus();
   });
 });
 $('search').addEventListener('input', () => {
@@ -1115,4 +1189,5 @@ setInterval(async () => {
     showNotice(error.message, true);
   }
 }, 60000);
+
 

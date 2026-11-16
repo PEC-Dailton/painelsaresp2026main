@@ -295,10 +295,19 @@ def aggregate_dashboard(rows, view, filters):
     if view not in ("ESCOLA", "TURMA"):
         raise ValueError("A visão deve ser ESCOLA ou TURMA.")
 
-    school_filter = filters.get("school", "").casefold()
-    grade_filter = filters.get("grade", "")
+    school_filter = filters.get("school", [])
+    if isinstance(school_filter, str):
+        school_filter = [school_filter] if school_filter else []
+    school_filter = {school.casefold() for school in school_filter if school}
+    grade_filter = filters.get("grade", [])
+    if isinstance(grade_filter, str):
+        grade_filter = [grade_filter] if grade_filter else []
+    grade_filter = [grade for grade in grade_filter if grade]
     turma_filter = filters.get("turma", "")
-    day_filter = filters.get("day", "")
+    day_filter = filters.get("day", [])
+    if isinstance(day_filter, str):
+        day_filter = [day_filter] if day_filter else []
+    day_filter = [day for day in day_filter if day]
     search_filter = filters.get("search", "").casefold()
     itinerary_source_grades = {
         "3ª Itinerário": "3º",
@@ -308,18 +317,16 @@ def aggregate_dashboard(rows, view, filters):
     def matches(row, include_grade=True):
         if row.get("type") != "TURMA":
             return False
-        if school_filter and row.get("school", "").casefold() != school_filter:
+        if school_filter and row.get("school", "").casefold() not in school_filter:
             return False
-        if (
-            include_grade
-            and grade_filter
-            and row.get("grade", "") != grade_filter
-            and row.get("grade", "") != itinerary_source_grades.get(grade_filter)
+        if include_grade and grade_filter and not any(
+            row.get("grade", "") in (grade, itinerary_source_grades.get(grade))
+            for grade in grade_filter
         ):
             return False
         if turma_filter and row.get("turma", "") != turma_filter:
             return False
-        if day_filter and row.get("day", "") != day_filter:
+        if day_filter and row.get("day", "") not in day_filter:
             return False
         searchable = " ".join(
             str(row.get(field, ""))
@@ -353,7 +360,7 @@ def aggregate_dashboard(rows, view, filters):
                     "type": view,
                     "school": row.get("school", ""),
                     "grade": row.get("grade", "") if view == "TURMA" else (
-                        grade_filter or "Todas as séries"
+                        ", ".join(grade_filter) or "Todas as séries"
                     ),
                     "turma": row.get("turma", "") if view == "TURMA" else "",
                     "period": row.get("period", "") if view == "TURMA" else "",
@@ -530,7 +537,9 @@ class DashboardHandler(BaseHTTPRequestHandler):
                 return
             query = parse_qs(urlsplit(self.path).query, keep_blank_values=True)
             filters = {
-                key: query.get(key, [""])[0]
+                key: query.get(key, [])
+                if key in ("school", "grade", "day")
+                else query.get(key, [""])[0]
                 for key in ("school", "grade", "turma", "day", "search")
             }
             view = query.get("view", ["ESCOLA"])[0]
@@ -587,3 +596,4 @@ if __name__ == "__main__":
         print("\nServidor encerrado.")
     finally:
         server.server_close()
+
